@@ -79,7 +79,7 @@ export default function PersonalLoanPage() {
               <div className="relative">
                 <div className="w-full h-96 rounded-3xl overflow-hidden relative">
                   <Image
-                    src="public/task_01k8w3gpmqf4n94wsa1gdrbcnw_1761879876_img_1 (1).webp"
+                    src="/orangeWomanSweater.webp"
                     alt="Woman in orange sweater smiling while using mobile phone"
                     fill
                     className="object-cover"
