@@ -3,6 +3,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Self-hosted Asap family (matches the Webflow site) — used by the 404 page. */
+@font-face { font-family: 'Asap'; font-style: normal; font-weight: 400; font-display: swap; src: url('/webflow/692969e914e2dd3c3db0e615_Asap-Regular.ttf') format('truetype'); }
+@font-face { font-family: 'Asap'; font-style: normal; font-weight: 500; font-display: swap; src: url('/webflow/692969e90be93ced2ef379c0_Asap-Medium.ttf') format('truetype'); }
+@font-face { font-family: 'Asap'; font-style: normal; font-weight: 600; font-display: swap; src: url('/webflow/692969e9152bbc9fcf4bff16_Asap-SemiBold.ttf') format('truetype'); }
+@font-face { font-family: 'Asap'; font-style: normal; font-weight: 800; font-display: swap; src: url('/webflow/692969e91347bb6a33bb8dc6_Asap-ExtraBold.ttf') format('truetype'); }
+
 @layer base {
   :root {
     --background: 0 0% 100%; /* #ffffff */
