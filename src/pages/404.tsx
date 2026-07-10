@@ -1,5 +1,6 @@
 import React from 'react'
 import Head from 'next/head'
+import Link from 'next/link'
 
 // Branded 404 that matches the Clear Compare Webflow site (navy #1e2556,
 // orange #ff7f35, Asap font, white "Alt" logo). Self-contained so it doesn't
@@ -28,7 +29,7 @@ export default function NotFound() {
           The page you&rsquo;re looking for may have moved or no longer exists.
           Let&rsquo;s get you back on track.
         </p>
-        <a href="/" className="cc404__btn">Back to home</a>
+        <Link href="/" className="cc404__btn">Back to home</Link>
       </main>
 
       <style jsx>{`
@@ -71,7 +72,9 @@ export default function NotFound() {
           margin: 14px 0 32px;
           color: #c9cce0;
         }
-        .cc404__btn {
+        /* :global because the class sits on a next/link <a>, which styled-jsx
+           does not scope automatically. */
+        :global(.cc404__btn) {
           display: inline-block;
           background-color: #ff7f35;
           color: #fff;
@@ -82,9 +85,33 @@ export default function NotFound() {
           border-radius: 10px;
           transition: background-color 0.2s ease, transform 0.2s ease;
         }
-        .cc404__btn:hover {
+        :global(.cc404__btn):hover {
           background-color: #f56a1c;
           transform: translateY(-1px);
+        }
+      `}</style>
+
+      <style jsx global>{`
+        @font-face {
+          font-family: 'Asap';
+          font-style: normal;
+          font-weight: 400;
+          font-display: swap;
+          src: url('/webflow/692969e914e2dd3c3db0e615_Asap-Regular.ttf') format('truetype');
+        }
+        @font-face {
+          font-family: 'Asap';
+          font-style: normal;
+          font-weight: 600;
+          font-display: swap;
+          src: url('/webflow/692969e9152bbc9fcf4bff16_Asap-SemiBold.ttf') format('truetype');
+        }
+        @font-face {
+          font-family: 'Asap';
+          font-style: normal;
+          font-weight: 800;
+          font-display: swap;
+          src: url('/webflow/692969e91347bb6a33bb8dc6_Asap-ExtraBold.ttf') format('truetype');
         }
       `}</style>
     </>
