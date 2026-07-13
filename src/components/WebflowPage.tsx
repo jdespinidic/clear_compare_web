@@ -66,8 +66,16 @@ export default function WebflowPage({ data }: { data: WebflowData }) {
     ;(async () => {
       for (const sc of scripts) {
         if (cancelled) return
-        if (sc.src) await loadExternal(sc.src)
-        else if (sc.code) runInline(sc.code)
+        if (sc.src) {
+          await loadExternal(sc.src)
+          continue
+        }
+        if (!sc.code) continue
+        // Google Tag Manager is already injected globally in _document.tsx, so
+        // skip the copy embedded in the Webflow page to avoid initialising the
+        // container twice (which would double-count pageviews/events).
+        if (/googletagmanager\.com\/gtm\.js|['"]gtm\.start['"]/.test(sc.code)) continue
+        runInline(sc.code)
       }
     })()
 
