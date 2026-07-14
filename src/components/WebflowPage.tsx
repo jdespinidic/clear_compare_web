@@ -23,6 +23,13 @@ export type WebflowData = {
 
 const WEBFLOW_CSS = '/webflow/css/clear-compare.webflow.shared.b5cebe7ae.css'
 
+// Base URL of the embedded RateMatch application form. Configurable via env so
+// the endpoint can be changed without a code change; the Webflow form-builder
+// scripts reference the `__RATEMATCH_FORM_URL__` token, which is substituted
+// with this value at runtime (see runInline below).
+const RATEMATCH_FORM_URL =
+  process.env.NEXT_PUBLIC_RATEMATCH_FORM_URL || 'https://forms.ratematch.ai/'
+
 /**
  * Renders an exact copy of a published Webflow page inside a Next.js route.
  *
@@ -58,7 +65,7 @@ export default function WebflowPage({ data }: { data: WebflowData }) {
 
     const runInline = (code: string) => {
       const s = document.createElement('script')
-      s.textContent = code
+      s.textContent = code.replace(/__RATEMATCH_FORM_URL__/g, RATEMATCH_FORM_URL)
       document.body.appendChild(s)
       appended.push(s)
     }
