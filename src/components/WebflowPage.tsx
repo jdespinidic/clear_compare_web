@@ -42,6 +42,13 @@ const RATEMATCH_FORM_URL =
 export default function WebflowPage({ data }: { data: WebflowData }) {
   const { meta, scripts, bodyHtml, wfPage, wfSite } = data
 
+  // Social-share tags default to the page's title/description so every page
+  // gets a good link preview (the shared og:image lives in _document).
+  const ogTitle = meta.og?.['og:title'] || meta.title
+  const ogDescription = meta.og?.['og:description'] || meta.description
+  const twitterTitle = meta.twitter?.['twitter:title'] || meta.title
+  const twitterDescription = meta.twitter?.['twitter:description'] || meta.description
+
   useEffect(() => {
     const el = document.documentElement
     el.setAttribute('data-wf-page', wfPage)
@@ -104,12 +111,10 @@ export default function WebflowPage({ data }: { data: WebflowData }) {
         ))}
         {meta.canonical && <link rel="canonical" href={meta.canonical} />}
         {meta.favicon && <link rel="shortcut icon" href={meta.favicon} />}
-        {Object.entries(meta.og || {}).map(([k, v]) => (
-          <meta key={k} property={k} content={v} />
-        ))}
-        {Object.entries(meta.twitter || {}).map(([k, v]) => (
-          <meta key={`tw-${k}`} name={k} content={v} />
-        ))}
+        {ogTitle && <meta property="og:title" content={ogTitle} />}
+        {ogDescription && <meta property="og:description" content={ogDescription} />}
+        {twitterTitle && <meta name="twitter:title" content={twitterTitle} />}
+        {twitterDescription && <meta name="twitter:description" content={twitterDescription} />}
       </Head>
       <div dangerouslySetInnerHTML={{ __html: bodyHtml }} />
     </>

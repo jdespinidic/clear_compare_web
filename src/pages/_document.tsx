@@ -53,7 +53,18 @@ export default function Document() {
         <meta name="apple-mobile-web-app-title" content="ClearCompare" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="format-detection" content="telephone=no" />
-        
+
+        {/* Open Graph / social-share defaults (per-page og:title/og:description
+            are set in WebflowPage). og:image must be an absolute URL. */}
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Clear Compare" />
+        <meta property="og:image" content="https://clearcompare.com.au/og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Clear Compare — compare loans in under 60 seconds" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="https://clearcompare.com.au/og-image.png" />
+
         {/* PWA Support */}
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
