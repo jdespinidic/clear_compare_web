@@ -13,6 +13,15 @@ import { loadGuide, type Guide } from '@/lib/guide'
  */
 export default function BuildGuide({ guide }: { guide: Guide }) {
   const [copied, setCopied] = useState(false)
+  // The mobile table of contents is the only way to navigate a document this
+  // long once the top of the page has scrolled away, so the sticky header can
+  // reopen it from anywhere.
+  const [tocOpen, setTocOpen] = useState(false)
+
+  const openToc = () => {
+    setTocOpen(true)
+    document.getElementById('guide-contents')?.scrollIntoView({ block: 'start' })
+  }
 
   const copyMarkdown = async () => {
     try {
@@ -58,14 +67,19 @@ export default function BuildGuide({ guide }: { guide: Guide }) {
             <img src="/webflow/692ce2d9c2a2a18127597fc2_logo.svg" alt="Clear Compare" height={28} />
           </Link>
           <nav className="guide-actions">
+            <button className="guide-btn guide-btn-toc" type="button" onClick={openToc}>
+              Contents
+            </button>
             <a className="guide-btn" href="/guides/build.md">
-              LLM view
+              LLM<span className="guide-btn-long"> view</span>
             </a>
             <a className="guide-btn" href="/guides/build.md" download="clear-compare-build-guide.md">
-              Download .md <span className="guide-btn-meta">{guide.sizeKb} KB</span>
+              <span className="guide-btn-long">Download .md </span>
+              <span className="guide-btn-short">.md</span>
+              <span className="guide-btn-meta guide-btn-long">{guide.sizeKb} KB</span>
             </a>
             <button className="guide-btn guide-btn-primary" type="button" onClick={copyMarkdown}>
-              {copied ? 'Copied' : 'Copy markdown'}
+              {copied ? 'Copied' : <>Copy<span className="guide-btn-long"> markdown</span></>}
             </button>
           </nav>
         </header>
@@ -79,9 +93,16 @@ export default function BuildGuide({ guide }: { guide: Guide }) {
           </aside>
 
           <main className="guide-main">
-            <details className="guide-toc-mobile">
+            <details
+              className="guide-toc-mobile"
+              id="guide-contents"
+              open={tocOpen}
+              onToggle={(e) => setTocOpen((e.currentTarget as HTMLDetailsElement).open)}
+            >
               <summary>On this page</summary>
-              {toc}
+              {/* Collapse again on pick, so the reader lands on the section
+                  rather than on a screenful of links. */}
+              <div onClick={() => setTocOpen(false)}>{toc}</div>
             </details>
 
             <article
@@ -214,6 +235,11 @@ export default function BuildGuide({ guide }: { guide: Guide }) {
         .guide-btn-primary:hover {
           background: #f06f22;
           border-color: #f06f22;
+        }
+        /* Label halves: the long text on desktop, the terse one on phones. */
+        .guide-btn-short,
+        .guide-btn-toc {
+          display: none;
         }
 
         .guide-shell {
@@ -416,12 +442,14 @@ export default function BuildGuide({ guide }: { guide: Guide }) {
           white-space: pre;
         }
 
-        .guide-article table {
-          display: block;
-          width: 100%;
+        .guide-table-wrap {
           overflow-x: auto;
-          border-collapse: collapse;
           margin: 1.5rem 0;
+          overscroll-behavior-x: contain;
+        }
+        .guide-article table {
+          width: 100%;
+          border-collapse: collapse;
           font-size: 0.92rem;
         }
         .guide-article th,
@@ -465,11 +493,56 @@ export default function BuildGuide({ guide }: { guide: Guide }) {
           .guide-toc-mobile {
             display: block;
           }
-          /* backdrop-filter on a sticky element repaints the blur on every
-             scroll frame, which janks on mobile GPUs — use a solid bar. */
+
+          /* The header is sticky, so every pixel it takes is a pixel lost from
+             every screenful of a 30-screen document. Keep it to one row:
+             shorter labels, smaller logo, tighter padding. And drop the
+             backdrop blur — it repaints on every scroll frame and janks on
+             mobile GPUs. */
           .guide-top {
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
             background: #fff;
             backdrop-filter: none;
+          }
+          .guide-brand img {
+            height: 22px;
+          }
+          .guide-actions {
+            gap: 0.35rem;
+          }
+          .guide-btn {
+            padding: 0.4rem 0.55rem;
+            font-size: 0.8rem;
+            border-radius: 0.45rem;
+          }
+          .guide-btn-primary {
+            min-width: 0;
+          }
+          .guide-btn-long {
+            display: none;
+          }
+          .guide-btn-short,
+          .guide-btn-toc {
+            display: inline;
+          }
+          .guide-btn-toc {
+            display: inline-flex;
+          }
+
+          /* Reopened from the header, so it needs to clear the sticky bar. */
+          .guide-toc-mobile {
+            scroll-margin-top: 3.5rem;
+          }
+
+          /* Give table columns room to be readable and let the wrapper scroll,
+             rather than squeezing four columns into 350px. */
+          .guide-article table {
+            min-width: 34rem;
+          }
+          .guide-article td code,
+          .guide-article th code {
+            white-space: nowrap;
           }
           .guide-article h1 {
             font-size: 1.85rem;

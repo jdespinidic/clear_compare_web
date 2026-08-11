@@ -58,7 +58,16 @@ function anchorHeadings(html: string) {
 export function loadGuide(): Guide {
   const markdown = readFileSync(GUIDE_PATH, 'utf8')
   const rendered = marked.parse(markdown, { async: false, gfm: true }) as string
-  const { html, toc } = anchorHeadings(rendered)
+
+  // Wrap tables so they scroll inside their own box on narrow screens. Without
+  // a wrapper a table squeezes its columns down to the viewport instead, which
+  // breaks code cells mid-token ("inde x.jso n").
+  const wrapped = rendered.replace(
+    /<table>([\s\S]*?)<\/table>/g,
+    '<div class="guide-table-wrap"><table>$1</table></div>'
+  )
+
+  const { html, toc } = anchorHeadings(wrapped)
 
   const title = (markdown.match(/^#\s+(.+)$/m) || [])[1]?.trim() || 'Build guide'
 
