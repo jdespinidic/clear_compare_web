@@ -17,6 +17,24 @@ const nextConfig = {
   // Old ClearCompare routes were removed when the site moved to the Webflow
   // build. Redirect them to the closest equivalent so existing links and
   // search-engine results don't dead-end on the 404 page.
+  // The build guide is served three ways from one file
+  // (public/guides/build.md): the rendered page at /guides/build, the raw
+  // markdown at /guides/build.md, and that same URL as a download. Serving the
+  // markdown as text/plain makes it render in the browser (and in an agent's
+  // fetch) instead of prompting a save; the download link forces the filename
+  // via the anchor's download attribute, so it is unaffected.
+  async headers() {
+    return [
+      {
+        source: '/guides/build.md',
+        headers: [
+          { key: 'Content-Type', value: 'text/plain; charset=utf-8' },
+          { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
+        ],
+      },
+    ];
+  },
+
   async redirects() {
     return [
       { source: '/loans/personal', destination: '/apply/personal-loan', permanent: true },

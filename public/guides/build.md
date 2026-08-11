@@ -13,6 +13,21 @@ The guide is in two halves:
   from scratch in code), a full rebranding checklist, and an acceptance test
   list you can run against the finished site.
 
+### Where to read this
+
+| View | URL |
+|---|---|
+| Rendered page | `https://clearcompare.com.au/guides/build` |
+| Raw markdown — LLM view, and the download | `https://clearcompare.com.au/guides/build.md` |
+
+All three are the same file: `public/guides/build.md`. Point an agent at the
+`.md` URL — it is served as plain text with no page chrome:
+
+```
+Read https://clearcompare.com.au/guides/build.md and follow it to rebuild
+this site as <brand>.
+```
+
 ---
 
 ## Part 1 — How it works today
@@ -42,7 +57,9 @@ Everything else (`404`, redirects, meta, PWA manifest, GTM) is Next.js plumbing.
 ```
 src/
   components/WebflowPage.tsx      ← the whole rendering engine (~120 lines)
+  lib/guide.ts                    ← renders this guide to HTML at build time
   pages/
+    guides/build.tsx              ← /guides/build — the page you may be reading
     _document.tsx                 ← global <head>: GTM, gtag, OG defaults, JSON-LD, manifest, SW
     _app.tsx                      ← deliberately empty: NO global CSS (would bleed onto Webflow pages)
     index.tsx                     ← / → index.json          (personal-loan landing)
@@ -58,8 +75,9 @@ public/
     js/jquery-3.5.1.min.js, webflow*.js              ← Webflow runtime
     gsap/3.15.0/{gsap,ScrollTrigger}.min.js          ← scroll animations (landing pages only)
     *.ttf  *.webp  *.png  *.svg                      ← fonts, imagery, logos
+  guides/build.md                 ← this guide: the raw markdown / LLM view / download
   og-image.png, favicon.ico, manifest.json, sw.js
-next.config.mjs                   ← legacy-route redirects
+next.config.mjs                   ← legacy-route redirects + the guide's text/plain header
 .env                              ← NEXT_PUBLIC_RATEMATCH_FORM_URL
 tailwind.config.ts, components.json, src/components/ui/*
                                   ← shadcn/Tailwind leftovers; the Webflow pages do NOT use them
@@ -458,6 +476,8 @@ Work through all of it — the misses are usually in the last third.
 - [ ] Decide on the Softgen monitoring script in `_document.tsx` (platform
       plumbing — keep only if you're still on that platform).
 - [ ] `sw.js` — check what it caches before shipping it under a new brand.
+- [ ] This guide: the URLs in "Where to read this", and the repo name in the
+      page footer (`src/pages/guides/build.tsx`).
 
 ### 2.4 Adding a landing page / vertical (the clone workflow)
 
