@@ -219,7 +219,195 @@ This works in the Next.js port because `bodyHtml` (and therefore
 `#ratematch-form-container`) is already in the DOM before `useEffect` replays
 the scripts.
 
-### 1.7 The attribution + tracking chain (the part that must not break)
+> **Don't copy `height = '1000'` into a new brand.** That constant decides
+> whether the form's Continue button is on screen at all — §1.7 explains why and
+> what to do instead.
+
+### 1.7 Sizing the form iframe — and the sticky Continue button
+
+**Read this before you change the embed's height, and before you copy the
+`height = '1000'` above into a new brand.** The iframe's height silently decides
+whether the form's Continue button is on screen. Getting it wrong costs
+conversions and looks like a bug in the form, which it isn't.
+
+The numbers below come from a sibling rebuild on the same RateMatch form
+(partner `MW001`), where both defects were diagnosed and fixed. They were
+measured against Clear Compare's real `bodyHtml` and stylesheet too.
+
+#### The mechanism
+
+The form styles its own action bar to stick to the bottom:
+
+```css
+.rm-form__actions {
+  margin-top: 1rem;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  background-color: var(--rm-background-color);
+  padding: .5rem 0;
+}
+```
+
+Two properties of `position: sticky` decide everything:
+
+1. It needs a **scrolling ancestor**. Inside an embed that is the iframe's own
+   document — the form's content is taller than the iframe, so the iframe
+   scrolls internally.
+2. It pins to the **bottom edge of that ancestor** — the bottom edge of the
+   **iframe**, not the bottom of the browser window.
+
+So: **if the iframe is taller than the viewport, the Continue button is pinned
+to a line that is off screen.** The rule is working perfectly; it is just
+anchored somewhere the visitor cannot see.
+
+#### What that means for the code above
+
+`height = '1000'` and `min-height: 1000px` are a fixed 1000px frame, and this
+repo has ~94px of chrome above it (the centred navbar, no heading). Measured:
+
+| | Chrome above form | Frame | Pinned Continue button |
+|---|---|---|---|
+| Clear Compare (as shipped) | 94px | 1000px | **129px below the fold** (desktop 1440×900) |
+| Sibling rebuild (before fix) | 225px | 1000px | 260px below the fold |
+
+Clear Compare fares better only because it has less chrome above the iframe.
+Its Continue button is still below the fold.
+
+The 1000px was never a decision about sticky behaviour — it is a round number.
+Clear Compare has no page-level sticky CTA at all: its 104 KB stylesheet
+contains three `position: sticky` rules, none used on the apply page, and the
+navbar computes to `position: relative`.
+
+#### The paradox that makes it worth fixing
+
+The sticky bar earns its keep in exactly one case — **a step taller than the
+iframe**, where the user scrolls and would otherwise lose the button. That is
+precisely the case where internal scrolling exists, which is precisely when the
+frame's bottom edge is a fixed distance down the page and off screen.
+
+In the opposite case — a step shorter than the frame — sticky does nothing,
+because there is nothing to scroll. Measured on a short step in a 1000px frame:
+the button sits at its natural position with **~594px of dead space below it**
+inside the iframe.
+
+A fixed 1000px frame gets the worst of both: dead space on short steps, an
+invisible pinned button on long ones.
+
+#### The fix — size the frame to the viewport, not to a constant
+
+Make the iframe's bottom edge and the fold the same line:
+
+```css
+.form-main {                    /* the section that holds the embed */
+  flex: 0 0 auto;
+  height: calc(100vh - 60px);   /* fallback for browsers without dvh */
+  height: calc(100dvh - 60px);  /* minus the site header */
+  display: flex;
+  min-height: 0;
+  padding: 20px 32px 24px;
+}
+.form-shell { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.form-embed { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.form-frame { flex: 1; display: flex; width: 100%; min-height: 520px; }
+.form-frame iframe { flex: 1; width: 100%; border: none; display: block; }
+```
+
+The frame absorbs whatever the heading and subhead leave, so the layout survives
+copy changes without a magic number tracking them.
+
+Three details that matter:
+
+- **`min-height: 0` on every link in the chain.** A flex item's automatic
+  minimum size is its content, so without this the iframe refuses to shrink and
+  overflows the viewport instead of fitting it.
+- **`100dvh`, not `100vh`.** On mobile, `vh` is measured against the largest
+  possible viewport and ignores the browser's collapsing address bar, which
+  would push the pinned button under it. Declare `100vh` first purely as a
+  fallback.
+- **`min-height` as a floor.** On very short windows the page should scroll
+  rather than squeeze the form into a letterbox.
+
+Result, from the sibling rebuild:
+
+| Viewport | Chrome | Frame | iframe bottom vs fold |
+|---|---|---|---|
+| desktop 1440×900 | 200px | 676px | **24px above** |
+| laptop 1440×760 | 200px | 536px | **24px above** |
+| mobile 390×844 | 184px | 640px | **20px above** |
+| small 360×640 | 184px | 436px | **20px above** |
+
+#### The gotcha that costs a round
+
+Reaching for the sticky-footer pattern — `min-height: 100dvh` on the body with
+`flex: 1` on the main area — leaves the frame stuck at its `min-height` floor.
+The footer is the reason: it is a flex child of the same column, so
+`min-height: 100dvh` is **already satisfied** by header + main + footer together
+and there is no free space for `flex: 1` to claim.
+
+Give the form's section an explicit `calc(100dvh - header)` and let the footer
+sit below the fold, where licensing text belongs.
+
+#### Chrome above the form is a budget
+
+Every pixel of header, heading or subhead is a pixel of form the visitor cannot
+see. Add anything above the embed and it comes straight out of the form's
+height — and out of the Continue button's headroom.
+
+#### Do not wire up auto-resize
+
+**Do not enable `ratematch-resize` / `autoResize`.** It sizes the iframe to its
+content, so the iframe never scrolls, so `position: sticky` has no scrollport
+and degrades to `static` — the Continue button would scroll away with the page
+and never come back. That is strictly worse than the fixed-height bug.
+
+It cannot work today in any case: the root form URL posts no resize message, and
+the `/embed` page that does is unreachable (`/embed`, `/embed/` and
+`/embed.html` all serve the index shell; only `/embed/index.html` reaches the
+real build). Even if RateMatch fixes that routing, auto-resize should not be
+adopted until they also drop or condition the sticky rule in embed mode.
+
+#### Don't put a decorative card behind the form either
+
+The sibling rebuild also wrapped the iframe in a white rounded card, reasoning
+that the form "renders on a light background of its own" — which is what the
+form bundle's default theme object says:
+
+```js
+let eg = { primaryColor:"#2563eb", secondaryColor:"#64748b",
+           backgroundColor:"#ffffff", textColor:"#1e293b", … }
+```
+
+That object is only the **fallback**. The real palette is resolved server-side
+per partner from the tenant config, and RateMatch was already serving that
+partner a dark theme — so the card framed a dark form in a white border. The
+frame should carry layout only, no surface.
+
+The general lesson, which applies directly when you stand up a new `partnerId`:
+reading a third-party bundle tells you what the code *can* do, not what your
+tenant is *configured* to do. Anything resolved per-partner from a server —
+themes, branding, feature flags — has to be observed on a real page for your
+partner ID before you design around it.
+
+#### Re-run the measurement whenever the chrome changes
+
+```js
+// node, with playwright
+const m = await page.evaluate(() => {
+  const r = document.querySelector('iframe').getBoundingClientRect()
+  return { top: Math.round(r.top), bottom: Math.round(r.bottom), fold: innerHeight }
+})
+console.log(m.bottom - m.fold)   // want a small negative number: just above the fold
+```
+
+Check 1440×900, 1440×760, 390×844 and 360×640. A positive number means the
+Continue button is pinned below the fold again.
+
+> **Status in this repo:** the apply pages still ship the fixed 1000px iframe
+> shown in §1.6 — the fix above has *not* been applied here. Treat §1.6 as a
+> description of what exists and this section as what to build.
+
+### 1.8 The attribution + tracking chain (the part that must not break)
 
 ```
  Ad click  ─► /?gclid=…&utm_source=…
@@ -253,7 +441,7 @@ Both the cookie-writer and the `postMessage` listener appear in **every** page's
 script list — landing pages and form pages alike — so attribution survives a
 user landing directly on an apply URL.
 
-### 1.8 Global head, config, deployment
+### 1.9 Global head, config, deployment
 
 `_document.tsx` carries what is *not* page-specific:
 
@@ -276,7 +464,7 @@ user landing directly on an apply URL.
 `NEXT_PUBLIC_RATEMATCH_FORM_URL`. Deployment is Vercel (`framework: nextjs`);
 `ecosystem.config.js` is a PM2 dev-server helper.
 
-### 1.9 Design tokens in the Webflow CSS
+### 1.10 Design tokens in the Webflow CSS
 
 The brand lives in one `:root` block (~line 2090 of the stylesheet):
 
@@ -467,6 +655,9 @@ Work through all of it — the misses are usually in the last third.
       Compare's identifier with the form provider. **A new brand needs its own
       id issued by the provider**; reusing `CC001` misattributes leads.
 - [ ] `formType` per apply page (`personal` / `car` / `home`).
+- [ ] Iframe sizing — build the embed against §1.7 rather than shipping the
+      1000px constant, and confirm the tenant theme your `partnerId` resolves to
+      before putting any surface behind the form.
 - [ ] Cookie name `rm_attribution` and the domain guard
       `location.hostname.indexOf('clearcompare.com.au')` → your domain.
 - [ ] GTM container id (`GTM-5RG38958`) and Google Ads id (`AW-17589801646`) in
@@ -506,29 +697,33 @@ this as the spec.
 2. **The form is an iframe, built at runtime** — its `src` must be assembled in
    the browser, because the query string depends on cookies and the current URL.
    Don't hard-code it into server-rendered HTML. Keep `width=100%`,
-   `min-height:1000px`, `border:none`, a meaningful `title`, and
-   `allow="clipboard-write"`.
-3. **Attribution capture on every page.** On load, read the ten tracked params
+   `border:none`, a meaningful `title`, and `allow="clipboard-write"`.
+3. **The iframe is sized to the viewport, never to a constant** — see §1.7. The
+   form's Continue button is `position: sticky; bottom: 0` and pins to the
+   *iframe's* bottom edge, so a frame taller than the window pins it off screen.
+   Use `calc(100dvh - chrome)` with `min-height: 0` down the flex chain, and
+   don't enable auto-resize.
+4. **Attribution capture on every page.** On load, read the ten tracked params
    from `location.search`; if any are present, merge them into the
    `rm_attribution` cookie (JSON, URL-encoded, 90 days, `path=/`,
    `SameSite=Lax; Secure`, apex `domain=` only on the production hostname so it
    still works on preview domains).
-4. **Attribution replay on apply pages.** `URL params ?? cookie` — a fresh click
+5. **Attribution replay on apply pages.** `URL params ?? cookie` — a fresh click
    always wins over a stored value. Plus `partnerId` and `formType`.
-5. **Cross-frame analytics.** A `message` listener that forwards
+6. **Cross-frame analytics.** A `message` listener that forwards
    `{ type:'RATEMATCH_TRACKING', event, data }` into `window.dataLayer`, flattening
    `data` alongside `event`. Events: `offers_displayed`, `offer_click`,
    `form_complete`.
-6. **GTM exactly once per page.** One container, in the document head.
-7. **Accordions.** Click toggles: close all (instant, `maxHeight = null`), open
+7. **GTM exactly once per page.** One container, in the document head.
+8. **Accordions.** Click toggles: close all (instant, `maxHeight = null`), open
    the clicked one by setting `maxHeight = scrollHeight + 'px'`. FAQ opens its
    first item on load; the footer accordion doesn't.
-8. **Head correctness.** Per-page `title`/`description`; `og:title`/
+9. **Head correctness.** Per-page `title`/`description`; `og:title`/
    `og:description` defaulting to them; absolute `og:image`;
    `twitter:card=summary_large_image`; canonical when the page has one.
-9. **Legacy redirects** preserved as 301s so existing ads and indexed URLs don't
+10. **Legacy redirects** preserved as 301s so existing ads and indexed URLs don't
    dead-end.
-10. **No CSS bleed.** If you keep the Webflow pages *and* add Tailwind pages,
+11. **No CSS bleed.** If you keep the Webflow pages *and* add Tailwind pages,
     keep the global-stylesheet import out of `_app.tsx` (this is why it's empty
     today) — or scope one of the two.
 
@@ -554,7 +749,15 @@ Run these against a preview deployment.
       — React 18 StrictMode double-invokes effects in dev; `reactStrictMode` is
       on, so confirm in a production build).
 - [ ] The iframe URL carries the correct `partnerId` and `formType`.
-- [ ] The form renders full-height without an inner scrollbar on mobile.
+- [ ] **The Continue button is visible without scrolling the page.** Measure the
+      iframe's bottom edge against the fold at 1440×900, 1440×760, 390×844 and
+      360×640 — see the snippet in §1.7. A positive number means the form's
+      sticky action bar is pinned below the fold.
+- [ ] Step through the whole form on a phone: the button stays on screen on
+      steps taller than the frame, and there is no dead space below it on short
+      steps.
+- [ ] The embed has no decorative surface fighting the tenant theme — check what
+      the form actually renders for *your* `partnerId` (§1.7).
 
 **Attribution**
 - [ ] Visit `/?gclid=TEST123&utm_source=google` → `rm_attribution` cookie exists
@@ -595,9 +798,12 @@ Run these against a preview deployment.
   fonts break.
 - **`_app.tsx` is empty on purpose.** Adding `import '@/styles/globals.css'`
   will restyle every Webflow page.
-- **The iframe has a fixed 1000px height** — it does not auto-resize. If the new
-  form is taller, adjust `height`/`min-height`, or add a `postMessage`-driven
-  resize handler on both sides.
+- **The iframe has a fixed 1000px height**, and that height decides where the
+  form's sticky Continue button gets pinned — currently ~129px below the fold on
+  a 1440×900 desktop. Don't copy the constant into a new brand, and don't
+  "fix" it with auto-resize (which removes the scrollport the sticky rule needs).
+  Size the frame to the viewport instead: **§1.7** has the mechanism, the CSS and
+  the measurements.
 - **`partnerId=CC001` is an identity, not a config default.** Ship a new brand
   with its own id.
 - **Purpose tiles are hand-linked.** After cloning a landing page, grep the JSON
