@@ -146,11 +146,15 @@ export default function Document() {
                   navigator.serviceWorker.register('/sw.js');
                 });
               }
-              
-              // Prevent zoom on iOS
-              document.addEventListener('touchmove', function (event) {
-                if (event.scale !== 1) { event.preventDefault(); }
-              }, { passive: false });
+
+              // NOTE: a non-passive document-level touchmove listener used to live
+              // here to block pinch-zoom on iOS. It called preventDefault() when
+              // "event.scale !== 1", but TouchEvent.scale is a Safari-only
+              // property — everywhere else it is undefined, so the condition was
+              // always true and every touchmove was cancelled. That blocked
+              // finger-scrolling outright on Android Chrome and any other
+              // non-Safari mobile browser. Blocking zoom also fails WCAG 1.4.4,
+              // so the listener was removed rather than repaired.
             `
           }}
         />

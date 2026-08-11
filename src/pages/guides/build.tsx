@@ -465,6 +465,12 @@ export default function BuildGuide({ guide }: { guide: Guide }) {
           .guide-toc-mobile {
             display: block;
           }
+          /* backdrop-filter on a sticky element repaints the blur on every
+             scroll frame, which janks on mobile GPUs — use a solid bar. */
+          .guide-top {
+            background: #fff;
+            backdrop-filter: none;
+          }
           .guide-article h1 {
             font-size: 1.85rem;
           }

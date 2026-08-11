@@ -604,6 +604,13 @@ Run these against a preview deployment.
   for the old `href` before shipping.
 - **`data-wf-page` ids are per-Webflow-site.** Mixing JSON captured from one
   Webflow project with `webflow*.js` from another breaks interactions.
+- **Never cancel `touchmove` at the document level.** `_document.tsx` used to
+  carry a non-passive listener calling `preventDefault()` when
+  `event.scale !== 1`, to block pinch-zoom on iOS. `TouchEvent.scale` is
+  Safari-only, so everywhere else it is `undefined`, the condition was always
+  true, and *every* touchmove was cancelled — the site could not be
+  finger-scrolled on Android Chrome at all. It also fails WCAG 1.4.4. If you
+  copy this codebase, make sure that listener has not come back.
 
 ### 2.8 Local development
 
