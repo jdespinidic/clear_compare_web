@@ -30,6 +30,12 @@ const WEBFLOW_CSS = '/webflow/css/clear-compare.webflow.shared.b5cebe7ae.css'
 const RATEMATCH_FORM_URL =
   process.env.NEXT_PUBLIC_RATEMATCH_FORM_URL || 'https://forms.ratematch.ai/'
 
+// CreditSense (LeadMarket) affiliate code for the /apply/loanfinder form. The
+// inline loader script references the `__CREDITSENSE_AFF__` token, substituted
+// here at runtime. Defaults to the Dev code; production sets
+// NEXT_PUBLIC_CREDITSENSE_AFF to the Prod affiliate code.
+const CREDITSENSE_AFF = process.env.NEXT_PUBLIC_CREDITSENSE_AFF || 'K28D4HR5'
+
 /**
  * Renders an exact copy of a published Webflow page inside a Next.js route.
  *
@@ -72,7 +78,9 @@ export default function WebflowPage({ data }: { data: WebflowData }) {
 
     const runInline = (code: string) => {
       const s = document.createElement('script')
-      s.textContent = code.replace(/__RATEMATCH_FORM_URL__/g, RATEMATCH_FORM_URL)
+      s.textContent = code
+        .replace(/__RATEMATCH_FORM_URL__/g, RATEMATCH_FORM_URL)
+        .replace(/__CREDITSENSE_AFF__/g, CREDITSENSE_AFF)
       document.body.appendChild(s)
       appended.push(s)
     }
