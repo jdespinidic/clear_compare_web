@@ -36,6 +36,12 @@ const RATEMATCH_FORM_URL =
 // NEXT_PUBLIC_CREDITSENSE_AFF to the Prod affiliate code.
 const CREDITSENSE_AFF = process.env.NEXT_PUBLIC_CREDITSENSE_AFF || 'K28D4HR5'
 
+// Only messages from the form's own origin are trusted. Any window with a
+// handle on this page (other embedded iframes, an opener) can postMessage a
+// RATEMATCH_TRACKING lookalike, and the payload feeds GTM — including
+// lead_value, which drives ad-platform conversion values.
+const RATEMATCH_FORM_ORIGIN = new URL(RATEMATCH_FORM_URL).origin
+
 /**
  * Renders an exact copy of a published Webflow page inside a Next.js route.
  *
@@ -85,6 +91,35 @@ export default function WebflowPage({ data }: { data: WebflowData }) {
       appended.push(s)
     }
 
+    // Canonical listener for the RateMatch form's tracking messages. It
+    // supersedes the unvalidated copy embedded in each captured Webflow page
+    // (skipped below): this one checks the sender's origin, and only pages
+    // that actually host the form iframe listen at all.
+    let onRateMatchMessage: ((event: MessageEvent) => void) | undefined
+    if (bodyHtml.includes('ratematch-form-container')) {
+      onRateMatchMessage = (event: MessageEvent) => {
+        if (event.origin !== RATEMATCH_FORM_ORIGIN) return
+        const msg = event.data
+        if (!msg || msg.type !== 'RATEMATCH_TRACKING' || typeof msg.event !== 'string') return
+
+        const payload: Record<string, unknown> =
+          msg.data && typeof msg.data === 'object' ? { ...msg.data } : {}
+        // lead_value feeds ad-platform conversion values — forward it only as
+        // a finite, non-negative number.
+        if ('lead_value' in payload) {
+          const value = Number(payload.lead_value)
+          if (Number.isFinite(value) && value >= 0) payload.lead_value = value
+          else delete payload.lead_value
+        }
+
+        const w = window as typeof window & { dataLayer?: Record<string, unknown>[] }
+        w.dataLayer = w.dataLayer || []
+        // `event` after the spread so no payload key can rename the GTM event.
+        w.dataLayer.push({ ...payload, event: msg.event })
+      }
+      window.addEventListener('message', onRateMatchMessage)
+    }
+
     ;(async () => {
       for (const sc of scripts) {
         if (cancelled) return
@@ -97,12 +132,17 @@ export default function WebflowPage({ data }: { data: WebflowData }) {
         // skip the copy embedded in the Webflow page to avoid initialising the
         // container twice (which would double-count pageviews/events).
         if (/googletagmanager\.com\/gtm\.js|['"]gtm\.start['"]/.test(sc.code)) continue
+        // The RATEMATCH_TRACKING listener duplicated in each captured page is
+        // superseded by the origin-checked listener above; running both would
+        // double-push every form event into the dataLayer.
+        if (sc.code.includes('RATEMATCH_TRACKING')) continue
         runInline(sc.code)
       }
     })()
 
     return () => {
       cancelled = true
+      if (onRateMatchMessage) window.removeEventListener('message', onRateMatchMessage)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

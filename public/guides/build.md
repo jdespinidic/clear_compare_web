@@ -427,8 +427,10 @@ Continue button is pinned below the fold again.
               │
               │ form posts back:  { type: 'RATEMATCH_TRACKING', event, data }
               ▼
-        window 'message' listener → dataLayer.push({ event, ...data })
+        origin-checked 'message' listener (WebflowPage.tsx)
+              → dataLayer.push({ ...data, event })
         events: offers_displayed · offer_click · form_complete
+        offer_click also carries lead_value (AUD, indicative) for CC001
               │
               ▼
         GTM (GTM-5RG38958) → Google Ads conversions (AW-17589801646)
@@ -437,9 +439,13 @@ Continue button is pinned below the fold again.
 Tracked params: `gclid, gbraid, wbraid, msclkid, fbclid, utm_source, utm_medium,
 utm_campaign, utm_term, utm_content`.
 
-Both the cookie-writer and the `postMessage` listener appear in **every** page's
-script list — landing pages and form pages alike — so attribution survives a
-user landing directly on an apply URL.
+The cookie-writer appears in each page's script list so attribution survives a
+user landing directly on an apply URL. The `postMessage` listener no longer
+runs from the page scripts: `WebflowPage.tsx` skips the copies captured in the
+Webflow JSON and registers one canonical listener instead — origin-checked
+against the form URL, registered only on pages that host the form iframe, and
+validating `lead_value` as a finite non-negative number before it reaches the
+dataLayer (it drives ad-platform conversion values).
 
 ### 1.9 Global head, config, deployment
 
@@ -591,7 +597,7 @@ Both routes share the branding checklist (§2.3) and the acceptance tests (§2.6
    | 3 | **Form-iframe injector** | form pages |
    | 4 | jQuery → webflow chunks → webflow main | all |
    | 5 | GSAP + ScrollTrigger | landing pages |
-   | 6 | `RATEMATCH_TRACKING` → `dataLayer` listener | all |
+   | 6 | `RATEMATCH_TRACKING` → `dataLayer` listener *(skipped at runtime — WebflowPage registers the origin-checked one)* | all |
    | 7 | Accordion init (`.faq_accordion`, `.footer_accordion`) | pages with FAQ/footer accordions |
    | 8 | **Attribution cookie writer** | all |
 
@@ -710,9 +716,13 @@ this as the spec.
    still works on preview domains).
 5. **Attribution replay on apply pages.** `URL params ?? cookie` — a fresh click
    always wins over a stored value. Plus `partnerId` and `formType`.
-6. **Cross-frame analytics.** A `message` listener that forwards
-   `{ type:'RATEMATCH_TRACKING', event, data }` into `window.dataLayer`, flattening
-   `data` alongside `event`. Events: `offers_displayed`, `offer_click`,
+6. **Cross-frame analytics.** One `message` listener (in `WebflowPage.tsx`, only
+   on pages hosting the form iframe) that forwards
+   `{ type:'RATEMATCH_TRACKING', event, data }` into `window.dataLayer`,
+   flattening `data` alongside `event`. It accepts messages only from the form
+   URL's origin, and coerces `lead_value` — the indicative AUD partner payout on
+   `offer_click` — to a finite non-negative number (dropped otherwise) since it
+   feeds conversion values. Events: `offers_displayed`, `offer_click`,
    `form_complete`.
 7. **GTM exactly once per page.** One container, in the document head.
 8. **Accordions.** Click toggles: close all (instant, `maxHeight = null`), open
