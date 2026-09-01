@@ -65,11 +65,12 @@ export default function Document() {
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:image" content="https://clearcompare.com.au/og-image.png" />
 
-        {/* PWA Support */}
-        <link rel="manifest" href="/manifest.json" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+        {/* No manifest or icon links here on purpose. Every file the old PWA
+            block referenced — manifest.json's five icons, apple-touch-icon.png,
+            favicon-16x16.png, favicon-32x32.png — was missing, so each one 404d
+            on every page load and the manifest logged an icon error. Pages get
+            their real favicon from the captured Webflow head (see WebflowPage).
+            A manifest is worth adding back only alongside icons that exist. */}
         
         {/* DNS Prefetch for Performance */}
         <link rel="dns-prefetch" href="//fonts.googleapis.com" />
@@ -141,11 +142,11 @@ export default function Document() {
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js');
-                });
-              }
+              // The service worker registration that used to live here is gone.
+              // /sw.js is now a tombstone that uninstalls itself — see the
+              // comment at the top of that file. Browsers holding the old
+              // worker re-check the script on navigation and pick the
+              // tombstone up on their own, so nothing needs to register it.
 
               // NOTE: a non-passive document-level touchmove listener used to live
               // here to block pinch-zoom on iOS. It called preventDefault() when
