@@ -79,7 +79,7 @@ public/
     gsap/3.15.0/{gsap,ScrollTrigger}.min.js          ← scroll animations (landing pages only)
     *.ttf  *.webp  *.png  *.svg                      ← fonts, imagery, logos
   guides/build.md                 ← this guide: the raw markdown / LLM view / download
-  og-image.png, favicon.ico, manifest.json, sw.js
+  og-image.png, og-image-business.png, favicon.ico, manifest.json, sw.js
 next.config.mjs                   ← legacy-route redirects + the guide's text/plain header
 .env                              ← NEXT_PUBLIC_RATEMATCH_FORM_URL
 tailwind.config.ts, components.json, src/components/ui/*
@@ -127,7 +127,12 @@ Read the file; it is short. The five things it does:
 
 1. **Head** — title, description, viewport, the Webflow stylesheet (path is a
    module constant, `WEBFLOW_CSS`), any `headStyles`, canonical, favicon, and
-   per-page OG/Twitter tags that fall back to `title`/`description`.
+   per-page OG/Twitter tags that fall back to `title`/`description`. The share
+   image is here too, not in `_document.tsx`: `og:image` (with its width,
+   height and alt) and `twitter:image` default to `/og-image.png`, and a page
+   overrides them with `meta.og['og:image']` and its own
+   `og:image:width`/`og:image:height`/`og:image:alt`. A page that sets its own
+   image never inherits the default's size or alt text.
 2. **Body** — `<div dangerouslySetInnerHTML={{ __html: bodyHtml }} />`.
 3. **On mount** — sets `data-wf-page` / `data-wf-site` on `<html>`, adds
    `w-mod-js` (and `w-mod-touch` when touch is available). Webflow CSS gates
@@ -184,6 +189,24 @@ holds "Who it's for"), the loan-matches card in the hero and the step images.
 The logo links to `/business` on the three business pages. Their footer is a
 business variant of the disclaimer, marked in the HTML with a
 `PENDING COMPLIANCE SIGN-OFF` comment until it is reviewed.
+
+The three business pages also have their own share image,
+`og-image-business.png`, set in each page's `meta.og`. The site-wide
+`og-image.png` and its alt text say "Compare loans in under 60 seconds" and
+"Trusted Australian lenders · No hidden fees", which the business pages don't
+claim. The business image keeps the same design and says "Compare business
+loans and asset finance" and "One set of questions · ABN checked for you" (the
+page's h1 and two of its feature headings); its alt text is "Clear Compare —
+compare business loans and asset finance".
+
+Before the business pages ship, these need the owner's (and, for the claims,
+compliance's) sign-off:
+
+- [ ] The business footer disclaimer (`PENDING COMPLIANCE SIGN-OFF`).
+- [ ] `og-image-business.png` and its alt text — a draft, **pending sign-off**.
+- [ ] The `Organization` JSON-LD `description` in `_document.tsx` ("Get real
+      offers for home, car, and personal loans in just 2 minutes"). It is
+      site-wide, so the business pages carry it too.
 
 ### 1.6 Anatomy of a form page (`personal-loan.json`)
 
@@ -468,9 +491,13 @@ dataLayer (it drives ad-platform conversion values).
 - Google Tag Manager (`GTM-5RG38958`) + noscript iframe
 - Google Ads gtag (`AW-17589801646`)
 - `theme-color` / `msapplication-TileColor` `#ff7f35`, apple web-app meta
-- OG/Twitter defaults — `og:site_name`, and an **absolute** `og:image`
-  (`https://clearcompare.com.au/og-image.png`, 1200×630) plus
-  `twitter:card=summary_large_image`
+- OG/Twitter defaults — `og:type`, `og:site_name` and
+  `twitter:card=summary_large_image`. The share image is per page, in
+  `WebflowPage.tsx` (§1.4): an **absolute** `og:image`, by default
+  `https://clearcompare.com.au/og-image.png` (1200×630). A tag in `_document`
+  can't be overridden from a page, and a second `og:image` from the page would
+  only duplicate it. The 404 and `/guides/build` (both `noindex`) don't use
+  `WebflowPage`, so they have no share image.
 - PWA manifest + favicons, DNS prefetch/preconnect, Google Fonts (Open Sans —
   used only by the non-Webflow surfaces)
 - `Organization` JSON-LD
@@ -648,8 +675,10 @@ Work through all of it — the misses are usually in the last third.
 - [ ] Logos: `692ce2d9c2a2a18127597fc2_logo.svg` (nav), `692ce31e7f70740520311f6e_Alt Logo.svg`
       (footer/404), the favicon PNG (`Group 39427 1 (1).png`), `favicon.ico`,
       `favicon-16/32`, `apple-touch-icon`, `android-chrome-192/512`.
-- [ ] `og-image.png` — 1200×630, and the **absolute** URL in `_document.tsx`
-      must point at the new production domain.
+- [ ] `og-image.png` and `og-image-business.png` — 1200×630, and the
+      **absolute** URLs (`DEFAULT_OG_IMAGE` in `WebflowPage.tsx`, and
+      `meta.og['og:image']` in the business JSON files) must point at the new
+      production domain. Check the claims the images and their alt text make.
 - [ ] Hero/section imagery (`loan-match*.webp`, `comparison*.webp`,
       `pick-lender*.webp`, `offers*.webp`, the purpose photos, `cta-bg.svg`).
       Webflow ships `-p-500/-p-800/-p-1080/-p-1600` variants referenced by
