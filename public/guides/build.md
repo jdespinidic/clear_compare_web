@@ -47,8 +47,8 @@ There are only two page *types*:
 
 | Type | Routes | JSON | What it does |
 |---|---|---|---|
-| **Landing page** | `/` , `/home` | `index.json`, `home.json` | Full marketing page. Captures `gclid`/UTM params into a cookie. Every CTA points at an apply page. |
-| **Form page** | `/apply/personal-loan`, `/apply/car-loans`, `/apply/home-loan` | `personal-loan.json`, `car-loans.json`, `home-loan.json` | Slim page — logo bar, the **RateMatch form in an iframe**, lender logos, footer. Reads the attribution cookie and passes it into the iframe URL. |
+| **Landing page** | `/` , `/home`, `/business` | `index.json`, `home.json`, `business.json` | Full marketing page. Captures `gclid`/UTM params into a cookie. Every CTA points at an apply page. |
+| **Form page** | `/apply/personal-loan`, `/apply/car-loans`, `/apply/home-loan`, `/apply/business-loan`, `/apply/asset-finance` | `personal-loan.json`, `car-loans.json`, `home-loan.json`, `business-loan.json`, `asset-finance.json` | Slim page — logo bar, the **RateMatch form in an iframe**, lender logos (not on the business pages), footer. Reads the attribution cookie and passes it into the iframe URL. |
 
 Everything else (`404`, redirects, meta, PWA manifest, GTM) is Next.js plumbing.
 
@@ -64,9 +64,12 @@ src/
     _app.tsx                      ← deliberately empty: NO global CSS (would bleed onto Webflow pages)
     index.tsx                     ← / → index.json          (personal-loan landing)
     home.tsx                      ← /home → home.json       (home-loan landing)
+    business.tsx                  ← /business → business.json (business loan + asset finance landing)
     apply/personal-loan.tsx       ← → personal-loan.json
     apply/car-loans.tsx           ← → car-loans.json
     apply/home-loan.tsx           ← → home-loan.json
+    apply/business-loan.tsx       ← → business-loan.json
+    apply/asset-finance.tsx       ← → asset-finance.json
     404.tsx                       ← self-contained branded 404 (styled-jsx, no shared CSS)
   webflow/*.json                  ← the captured pages (the actual content of the site)
 public/
@@ -171,6 +174,17 @@ Layout primitives repeat throughout and are worth knowing:
 purpose tiles, and every CTA `href` (`/apply/personal-loan` →
 `/apply/home-loan`). That is the intended pattern for adding a vertical.
 
+**`/business` is also a copy of `/`, with more taken out.** Business loans
+and asset finance share one landing page, so its CTAs come in pairs
+(`/apply/business-loan` and `/apply/asset-finance`) and the purpose tiles are
+two grids, one per product. The nav CTA scrolls to those tiles
+(`#finance-options`). Everything that is a consumer claim is gone: the rate,
+speed and amount ticks, the lender logo strip, the reviews (that section now
+holds "Who it's for"), the loan-matches card in the hero and the step images.
+The logo links to `/business` on the three business pages. Their footer is a
+business variant of the disclaimer, marked in the HTML with a
+`PENDING COMPLIANCE SIGN-OFF` comment until it is reviewed.
+
 ### 1.6 Anatomy of a form page (`personal-loan.json`)
 
 Much smaller (~13 KB of HTML vs ~89 KB):
@@ -192,7 +206,7 @@ jQuery/Webflow load — it doesn't need them):
 ```js
 var src = new URL('__RATEMATCH_FORM_URL__');        // substituted by WebflowPage
 src.searchParams.set('partnerId', 'CC001');          // ← per-brand partner id
-src.searchParams.set('formType', 'personal');        // ← 'personal' | 'car' | 'home'
+src.searchParams.set('formType', 'personal');        // ← 'personal' | 'car' | 'home' | 'business' | 'asset_finance'
 
 // attribution: cookie set on the landing page, overridden by fresh URL params
 var stored = {};
@@ -660,7 +674,8 @@ Work through all of it — the misses are usually in the last third.
 - [ ] `partnerId` in each form-page injector script — `CC001` is Clear
       Compare's identifier with the form provider. **A new brand needs its own
       id issued by the provider**; reusing `CC001` misattributes leads.
-- [ ] `formType` per apply page (`personal` / `car` / `home`).
+- [ ] `formType` per apply page (`personal` / `car` / `home` / `business` /
+      `asset_finance`).
 - [ ] Iframe sizing — build the embed against §1.7 rather than shipping the
       1000px constant, and confirm the tenant theme your `partnerId` resolves to
       before putting any surface behind the form.
@@ -686,10 +701,21 @@ for spinning up a new brand's second vertical:
    supporting paragraphs, the purpose tiles (label + `href`), the "how it works"
    copy, and **every CTA `href`** → `/apply/<vertical>`.
 3. `cp src/webflow/personal-loan.json src/webflow/<vertical>-apply.json`, change
-   `meta`, and set `formType` in the injector script.
+   `meta`, and set `formType` in the injector script. Clone the apply page from
+   `personal-loan.json` (or `home-loan.json`), **not** `car-loans.json`:
+   `car-loans.json` has no attribution-cookie writer script, so on a page
+   cloned from it a visitor who arrives with click ids in the URL would not
+   have them stored in the `rm_attribution` cookie.
 4. Add the two page files under `src/pages/`.
 5. Verify the tile/CTA links resolve — a stale `/apply/personal-loan` inside a
    cloned page silently sends leads to the wrong form type.
+6. Check every claim the clone carries over. The footer, rate ticks, lender
+   logos, reviews and step images are consumer-loan content; a different
+   product needs its own (see `/business` in §1.5).
+
+The JSON files are one line each. Edit them with a script that parses the
+JSON, changes it and writes it back with `json.dumps(data, ensure_ascii=False)`
+and no trailing newline (the format the files are in), never by hand.
 
 ### 2.5 Route B — the behavioural contract
 
