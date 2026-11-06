@@ -54,16 +54,14 @@ export default function Document() {
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="format-detection" content="telephone=no" />
 
-        {/* Open Graph / social-share defaults (per-page og:title/og:description
-            are set in WebflowPage). og:image must be an absolute URL. */}
+        {/* Open Graph / social-share defaults. The share image (og:image, its
+            size and alt, twitter:image) is set per page in WebflowPage, not
+            here: a tag in _document can't be overridden from a page, and the
+            default image's "under 60 seconds" claim is wrong for the business
+            pages. Per-page og:title/og:description are set there too. */}
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Clear Compare" />
-        <meta property="og:image" content="https://clearcompare.com.au/og-image.png" />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="Clear Compare — compare loans in under 60 seconds" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:image" content="https://clearcompare.com.au/og-image.png" />
 
         {/* No manifest or icon links here on purpose. Every file the old PWA
             block referenced — manifest.json's five icons, apple-touch-icon.png,

@@ -42,6 +42,17 @@ const CREDITSENSE_AFF = process.env.NEXT_PUBLIC_CREDITSENSE_AFF || 'K28D4HR5'
 // lead_value, which drives ad-platform conversion values.
 const RATEMATCH_FORM_ORIGIN = new URL(RATEMATCH_FORM_URL).origin
 
+// The site-wide share image, used unless a page sets meta.og['og:image']. It
+// must be an absolute URL. Its alt text and the image itself claim "under 60
+// seconds", which is the consumer pages' claim: a page that doesn't make it
+// (the business pages) sets its own image.
+const DEFAULT_OG_IMAGE = {
+  url: 'https://clearcompare.com.au/og-image.png',
+  width: '1200',
+  height: '630',
+  alt: 'Clear Compare — compare loans in under 60 seconds',
+}
+
 /**
  * Renders an exact copy of a published Webflow page inside a Next.js route.
  *
@@ -55,11 +66,21 @@ export default function WebflowPage({ data }: { data: WebflowData }) {
   const { meta, scripts, bodyHtml, wfPage, wfSite } = data
 
   // Social-share tags default to the page's title/description so every page
-  // gets a good link preview (the shared og:image lives in _document).
+  // gets a good link preview.
   const ogTitle = meta.og?.['og:title'] || meta.title
   const ogDescription = meta.og?.['og:description'] || meta.description
   const twitterTitle = meta.twitter?.['twitter:title'] || meta.title
   const twitterDescription = meta.twitter?.['twitter:description'] || meta.description
+
+  // The share image is set here rather than in _document so a page can choose
+  // its own. Size and alt text describe one particular image, so a page that
+  // sets og:image gets them from its own meta.og and never the default's.
+  const pageOgImage = meta.og?.['og:image']
+  const ogImage = pageOgImage || DEFAULT_OG_IMAGE.url
+  const ogImageWidth = pageOgImage ? meta.og?.['og:image:width'] : DEFAULT_OG_IMAGE.width
+  const ogImageHeight = pageOgImage ? meta.og?.['og:image:height'] : DEFAULT_OG_IMAGE.height
+  const ogImageAlt = pageOgImage ? meta.og?.['og:image:alt'] : DEFAULT_OG_IMAGE.alt
+  const twitterImage = meta.twitter?.['twitter:image'] || ogImage
 
   useEffect(() => {
     const el = document.documentElement
@@ -161,8 +182,13 @@ export default function WebflowPage({ data }: { data: WebflowData }) {
         {meta.favicon && <link rel="shortcut icon" href={meta.favicon} />}
         {ogTitle && <meta property="og:title" content={ogTitle} />}
         {ogDescription && <meta property="og:description" content={ogDescription} />}
+        <meta property="og:image" content={ogImage} />
+        {ogImageWidth && <meta property="og:image:width" content={ogImageWidth} />}
+        {ogImageHeight && <meta property="og:image:height" content={ogImageHeight} />}
+        {ogImageAlt && <meta property="og:image:alt" content={ogImageAlt} />}
         {twitterTitle && <meta name="twitter:title" content={twitterTitle} />}
         {twitterDescription && <meta name="twitter:description" content={twitterDescription} />}
+        <meta name="twitter:image" content={twitterImage} />
       </Head>
       <div dangerouslySetInnerHTML={{ __html: bodyHtml }} />
     </>
